@@ -36,7 +36,7 @@ import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect._internal.concurrency.timeouts import get_deadline
+from prefect._internal.concurrency.timeouts import CancelledError, get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
@@ -648,7 +648,7 @@ async def orchestrate_flow_run(
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
                 # This check for a parent call is needed for cases where the engine
-                # was entered directly; such as during testing _or_ deployment runs
+                # was entered directly which should only occur during testing
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -679,7 +679,7 @@ async def orchestrate_flow_run(
             name = message = None
             if (
                 # Flow run timeouts
-                isinstance(exc, TimeoutError)
+                isinstance(exc, (CancelledError, TimeoutError))
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
                 and flow_call.cancelled()
